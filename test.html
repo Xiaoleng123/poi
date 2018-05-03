@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+<meta charset='utf-8'>
+</head>
+<body>
+<script>
+const data = [
+  {
+    uid: 888888888,
+    title: '周黑鸭',
+    city: '武汉市',
+    type: '餐饮',
+    address: '武珞路阅马场',
+    business: '武珞路商圈',
+    lon: 114.225685,
+    lat: 30.5201437,
+    phone: 13856587458,
+    url: 'http://852741963.html',
+    detailUrl: 'http://852741963.html',
+  },{
+    uid: 11222112,
+    title: '周黑鸭',
+    city: '武汉市',
+    type: '餐饮',
+    address: '武珞路阅马场',
+    business: '武珞路商圈',
+    lon: 114.225685,
+    lat: 30.5201437,
+    phone: 13856587458,
+    url: 'http://852741963.html',
+    detailUrl: 'http://852741963.html',
+  },
+];
+const xhr = new XMLHttpRequest();
+xhr.open('POST', 'http://localhost:3000/save',true);
+xhr.send(JSON.stringify(data));
+xhr.onreadystatechange = function () {
+  if (xhr.readyState == 4 && xhr.status == 200) {
+    console.log(JSON.parse(xhr.responseText));
+  }
+};
+
+</script>
+</body>
+</html>

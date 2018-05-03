@@ -1,0 +1,159 @@
+<!DOCTYPE html> 
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<style type="text/css">
+    html,body{
+        height:100%;
+        margin:0;
+        padding:0;
+    }
+</style>
+</head> 
+<body>
+<div id="container" style="display:none;"></div>    <!-- 地图元素不用，隐藏即可 -->
+<div id="main" style="width:100%;height:100%;"></div>
+<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=k74dnzzNHEmOsCkzTCxVrKhEH62vcVYP"></script>
+<script type="text/javascript">
+//变量、常量等声明在前以便修改
+const wh_pois = [           //武汉市几大商圈及其大致区域，范围选取受主观影响
+    {name:"街道口商圈",coord:[[114.349305,30.521108],[114.365187,30.535137]]},
+    {name:"光谷商圈",coord:[[114.392249,30.505847],[114.421785,30.51767]]},
+    {name:"中南商圈",coord:[[114.326778,30.539281],[114.352002,30.54998]]},
+    {name:"徐东商圈",coord:[[114.344079,30.590915],[114.360751,30.599868]]},
+    {name:"江汉路商圈",coord:[[114.291582,30.581122],[114.30308,30.591817]]},
+    {name:"武广商圈",coord:[[114.269789,30.583361],[114.281539,30.597444]]},
+    {name:"汉正街商圈",coord:[[114.278643,30.574976],[114.285533,30.579376]]},
+    {name:"王家墩商圈",coord:[[114.256422,30.592439],[114.268927,30.59819]]},
+    {name:"钟家村商圈",coord:[[114.262135,30.539296],[114.28118,30.560632]]},
+    {name:"王家湾商圈",coord:[[114.208677,30.562645],[114.236884,30.571103]]},
+];
+const keywords = ["服装店","餐馆","酒店","公交站","网吧","银行"];    //查询关键词，对应 衣 食 住 行 娱 服务
+window.onload = function(){
+    const map = new BMap.Map("container");         //初始化一个地图元素
+    map.centerAndZoom(new BMap.Point(114.32, 30.57), 14); 
+    getData(map);
+};
+//顶层函数声明推荐不要使用ES6的箭头函数，因为箭头函数打穿作用域会导致你在函数内部一层作用于的this指向全局
+function getData(map){
+    const arrs = [];  //总存储
+    let once = true; // 只输出一次
+    //下一段代码涉及到了循环内部嵌类递归，逻辑可能比较复杂，后期我尝试使用进行优化，不知道Promise是否可行
+    for(let q=0;q<wh_pois.length;q++){
+        //注意这里推荐使用let或者const，不能用var，涉及到作用域问题
+        //arr:存储数据的数组  maxPage:结果最多的条件的页面总数  maxI:记录结果最多的条件的下标位置  isMuch:判断是否大于760
+        let [arr,maxPage,maxI,isMuch] = [[],0,0,false];
+        arr.address = wh_pois[q].name;
+        const options = {      
+            //这个大方法如果是实际业务开发最好细化拆分一下，一块代码太长是很不好的，这里是为了方便查看逻辑
+            onSearchComplete (results){      
+                if (local.getStatus() === 0){      // 判断状态是否正确 0是BMAP_STATUS_SUCCESS的值
+                    for(let j=0;j<results.length;j++){
+                        if(results[j].getNumPois() === 760){  //判断数据量是否大于760，大于760则进行切割
+                            isMuch = true;
+                            break;
+                        }else{
+                            isMuch = false;
+                        }
+                    }
+                    if(isMuch){
+                            const oldBounds = results[0].bounds;
+                            /*计算切割中心经度，要按纬度切也是没问题的。
+                            这里的Ge Le Ke Fe就是两个端点的坐标由于bounds没有提供getX()之类的方法，就只能直接debug看属性名了*/
+                            const halfLon = Number(((oldBounds.Ge+oldBounds.Le)/2).toFixed(6));
+                            // 查询左区域
+                            local.searchInBounds(keywords, new BMap.Bounds(new BMap.Point(oldBounds.Le,oldBounds.Ke),
+                                new BMap.Point(halfLon,oldBounds.Fe)));
+                            //查询右区域
+                            local.searchInBounds(keywords, new BMap.Bounds(new BMap.Point(halfLon,oldBounds.Ke),
+                                new BMap.Point(oldBounds.Ge,oldBounds.Fe)));
+                    }else{
+                        for(let i=0;i<results.length;i++){
+                            !arr[i]?(arr[i] = {}):"";  //如果值存在就不用再初始化
+                            arr[i].type = arr[i].type||results[i].keyword;
+                            arr[i].pois = arr[i].pois?arr[i].pois.slice(0):[];
+                            for(let k=0;k<results[i].getCurrentNumPois();k++){
+                                arr[i].pois.push(results[i].getPoi(k))   //这样就能进行poi拼接了
+                            }
+                            arr[i].count = arr[i].pois.length;
+                            maxPage = Math.max(maxPage,results[i].getNumPages());
+                            if(maxPage <= results[i].getNumPages()){
+                                maxI = i;
+                            }
+                        }
+                        if(results[maxI].getPageIndex() < maxPage-1){  //该组数据未搜索完成
+                            local.gotoPage(results[maxI].getPageIndex()+1);
+                        }else if(results[maxI].getPageIndex() === maxPage-1){   //该组数据搜索完成
+                            arrs.push(arr);
+                        }
+                        if (arrs.length === wh_pois.length){  //所有数据搜索完成
+                            // 分段可能导致多次输出，延迟十秒等待第一份数组数据填充结束
+                            if (!once) {
+                              return false;
+                            }
+                            once = false;
+                            setTimeout(()=>{formatData(arrs);},10000);
+                        }
+                    }
+                    
+                } else{
+                    //这里不写的时候也没啥，不过切割之后每次都有错误报出来（错误码5），对结果没用影响，产生原因有待研究·~·
+                    console.warn("请求好像出了点问题，但不影响结果，错误码："+local.getStatus())  
+                }      
+            },
+            pageCapacity:50  //单页数据数量
+        };
+        const local = new BMap.LocalSearch(map, options); 
+        const poiStart = new BMap.Point(wh_pois[q].coord[0][0], wh_pois[q].coord[0][1]);
+        const poiEnd = new BMap.Point(wh_pois[q].coord[1][0], wh_pois[q].coord[1][1]);
+        const bounds = new BMap.Bounds(poiStart, poiEnd)
+        local.searchInBounds(keywords, bounds);
+    }
+}
+
+function formatData (arrs) {
+  const finalArr = [];
+  arrs.forEach(businesses => {
+    const business = businesses.address;
+    businesses.forEach(types => {
+      const type = types.type;
+      types.pois && types.pois.forEach(poi => {
+        finalArr.push({
+          uid: poi.uid,
+          title: poi.title,
+          city: poi.city,
+          type: type,
+          address: poi.address,
+          business: business,
+          lon: poi.point.lng,
+          lat: poi.point.lat,
+          phone: poi.phoneNumber || '',
+          url: poi.url,
+          detailUrl: poi.detailUrl,
+        });
+      });
+    });
+  });
+  saveData(finalArr);
+}
+
+function saveData(datas){
+  // 数据太大一次传不过去，要分批
+  for (let item = 0, length = datas.length; item < length; item += 100) {
+    setTimeout(function() {
+      console.log(`save progress ${item} / ${length}`);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST','http://localhost:3000/save');
+      xhr.send(JSON.stringify(datas.slice(item,item + 100)));
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+          console.log(xhr.responseText);
+        } 
+      };
+    },100 * item)
+  }
+}
+</script>
+</body>
+</html>
