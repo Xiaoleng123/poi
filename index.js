@@ -26,7 +26,7 @@ app.use(bodyParser({
 }))
 
 router.post('/', async function (ctx, next) {
-  ctx.response.body = '跨域成功';
+  ctx.response.body = '访问成功';
 });
 
 router.post('/save', async function (ctx, next) {
