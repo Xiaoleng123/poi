@@ -25,7 +25,7 @@ app.use(bodyParser({
   enableTypes:['json', 'form', 'text']
 }))
 
-router.post('/', async function (ctx, next) {
+router.get('/', async function (ctx, next) {
   ctx.response.body = '访问成功';
 });
 
@@ -45,7 +45,7 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
   }
 });
 
-const DataBase = sequelize.define('wuhan', {
+const DataBase = sequelize.define('beijing', {
   uid: {
       type: Sequelize.STRING(50),
       primaryKey: true
@@ -53,7 +53,7 @@ const DataBase = sequelize.define('wuhan', {
   title: Sequelize.STRING(100),
   city: Sequelize.STRING(5),
   type: Sequelize.STRING(10),
-  address: Sequelize.STRING(255),
+  address: Sequelize.STRING(500),
   business: Sequelize.STRING(10),
   lon: Sequelize.DECIMAL(10,6),
   lat: Sequelize.DECIMAL(10,6),

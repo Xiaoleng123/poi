@@ -36,8 +36,12 @@ const xhr = new XMLHttpRequest();
 xhr.open('POST', 'http://localhost:3000/save',true);
 xhr.send(JSON.stringify(data));
 xhr.onreadystatechange = function () {
-  if (xhr.readyState == 4 && xhr.status == 200) {
-    console.log(JSON.parse(xhr.responseText));
+  if (xhr.readyState === 4) {
+    if ( xhr.status === 200) {
+      console.log(xhr.responseText);
+    }else {
+      console.error(`error status:${xhr.status}`);
+    }
   }
 };
 

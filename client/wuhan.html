@@ -88,7 +88,6 @@ function getData(map){
                             arrs.push(arr);
                         }
                         if (arrs.length === wh_pois.length){  //所有数据搜索完成
-                            // 分段可能导致多次输出，延迟十秒等待第一份数组数据填充结束
                             if (!once) {
                               return false;
                             }
@@ -99,7 +98,7 @@ function getData(map){
                     
                 } else{
                     //这里不写的时候也没啥，不过切割之后每次都有错误报出来（错误码5），对结果没用影响，产生原因有待研究·~·
-                    console.warn("请求好像出了点问题，但不影响结果，错误码："+local.getStatus())  
+                    console.warn("请求好像出了点问题，但不影响结果，错误码："+local.getStatus()); 
                 }      
             },
             pageCapacity:50  //单页数据数量
@@ -114,24 +113,28 @@ function getData(map){
 
 function formatData (arrs) {
   const finalArr = [];
+  const obj = {};
   arrs.forEach(businesses => {
     const business = businesses.address;
     businesses.forEach(types => {
       const type = types.type;
       types.pois && types.pois.forEach(poi => {
-        finalArr.push({
-          uid: poi.uid,
-          title: poi.title,
-          city: poi.city,
-          type: type,
-          address: poi.address,
-          business: business,
-          lon: poi.point.lng,
-          lat: poi.point.lat,
-          phone: poi.phoneNumber || '',
-          url: poi.url,
-          detailUrl: poi.detailUrl,
-        });
+        if (!obj[poi.uid]) {
+          obj[poi.uid] = 1;
+          finalArr.push({
+            uid: poi.uid,
+            title: poi.title,
+            city: poi.city,
+            type: type,
+            address: poi.address,
+            business: business,
+            lon: poi.point.lng,
+            lat: poi.point.lat,
+            phone: poi.phoneNumber || '',
+            url: poi.url,
+            detailUrl: poi.detailUrl,
+          });
+        }
       });
     });
   });
@@ -140,18 +143,22 @@ function formatData (arrs) {
 
 function saveData(datas){
   // 数据太大一次传不过去，要分批
-  for (let item = 0, length = datas.length; item < length; item += 100) {
+  for (let item = 0, length = datas.length; item < length; item += 500) {
     setTimeout(function() {
-      console.log(`save progress ${item} / ${length}`);
+      console.log(`save progress ${item}+ / ${length}`);
       const xhr = new XMLHttpRequest();
       xhr.open('POST','http://localhost:3000/save');
-      xhr.send(JSON.stringify(datas.slice(item,item + 100)));
+      xhr.send(JSON.stringify(datas.slice(item,item + 500)));
       xhr.onreadystatechange = function () {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-          console.log(xhr.responseText);
-        } 
+          if (xhr.readyState === 4) {
+            if ( xhr.status === 200) {
+              console.log(xhr.responseText);
+            }else {
+              console.error(`error status:${xhr.status}`);
+            }
+          }
       };
-    },100 * item)
+    },10 * item)
   }
 }
 </script>
